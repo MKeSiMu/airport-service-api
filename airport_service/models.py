@@ -1,6 +1,8 @@
 import os
 import uuid
 
+from django.core.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
 from django.db import models
 from django.utils.text import slugify
 
@@ -40,3 +42,45 @@ class Airplane(models.Model):
 
     def __str__(self):
         return str(self.name)
+
+
+class Crew(models.Model):
+    first_name = models.CharField(max_length=65)
+    last_name = models.CharField(max_length=65)
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name}"
+
+
+def validate_upper_case(value):
+    if value.upper() != value:
+        raise ValidationError(
+            _("%(value)s should be upper case"),
+            params={"value": value},
+        )
+
+
+class Airport(models.Model):
+    name = models.CharField(max_length=65)
+    code = models.CharField(max_length=3, validators=[validate_upper_case], null=True)
+    closest_big_city = models.CharField(max_length=65)
+
+    def __str__(self):
+        return f"{self.name} (IATA code: {self.code}; city: {self.closest_big_city})"
+
+
+class Route(models.Model):
+    source = models.ForeignKey(
+        Airport,
+        on_delete=models.CASCADE,
+        related_name="sources"
+    )
+    destination = models.ForeignKey(
+        Airport,
+        on_delete=models.CASCADE,
+        related_name="destinations"
+    )
+    distance = models.IntegerField()
+
+    def __str__(self):
+        return f"{self.source.closest_big_city} - {self.destination.closest_big_city}"
