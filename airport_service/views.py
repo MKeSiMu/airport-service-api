@@ -4,7 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 
-from airport_service.models import AirplaneType, Airplane
+from airport_service.models import AirplaneType, Airplane, Crew, Airport, Route
 from airport_service.permissions import IsAdminOrIsAuthenticatedReadOnly
 from airport_service.serializers import (
     AirplaneTypeSerializer,
@@ -12,6 +12,11 @@ from airport_service.serializers import (
     AirplaneListSerializer,
     AirplaneDetailSerializer,
     AirplaneImageSerializer,
+    CrewSerializer,
+    AirportSerializer,
+    RouteSerializer,
+    RouteListSerializer,
+    RouteDetailSerializer,
 )
 
 
@@ -41,7 +46,7 @@ class AirplaneViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(airplane_type__id__in=airplane_types_ids)
 
         if self.action in ("list", "retrieve"):
-            queryset = queryset.prefetch_related("airplane_type")
+            queryset = queryset.select_related("airplane_type")
 
         return queryset.distinct()
 
@@ -83,3 +88,47 @@ class AirplaneViewSet(viewsets.ModelViewSet):
     # )
     # def list(self, request, *args, **kwargs):
     #     return super().list(request, *args, **kwargs)
+
+
+class CrewViewSet(viewsets.ModelViewSet):
+    queryset = Crew.objects.all()
+    serializer_class = CrewSerializer
+    permission_classes = (IsAdminOrIsAuthenticatedReadOnly,)
+
+
+class AirportViewSet(viewsets.ModelViewSet):
+    queryset = Airport.objects.all()
+    serializer_class = AirportSerializer
+    permission_classes = (IsAdminOrIsAuthenticatedReadOnly,)
+
+
+class RouteViewSet(viewsets.ModelViewSet):
+    queryset = Route.objects.all()
+    serializer_class = RouteSerializer
+    permission_classes = (IsAdminOrIsAuthenticatedReadOnly,)
+
+    def get_queryset(self):
+        queryset = self.queryset
+
+        source = self.request.query_params.get("source")
+        destination = self.request.query_params.get("destination")
+
+        if source:
+            queryset = queryset.filter(source__name__icontains=source)
+
+        if destination:
+            queryset = queryset.filter(destination__name__icontains=destination)
+
+        if self.action in ("list", "retrieve"):
+            queryset = queryset.select_related("destination", "source")
+
+        return queryset.distinct()
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return RouteListSerializer
+
+        if self.action == "retrieve":
+            return RouteDetailSerializer
+
+        return RouteSerializer

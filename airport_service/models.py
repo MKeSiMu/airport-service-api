@@ -63,8 +63,8 @@ def validate_upper_case(value):
 
 
 class Airport(models.Model):
-    name = models.CharField(max_length=65)
-    code = models.CharField(max_length=3, validators=[validate_upper_case], null=True)
+    name = models.CharField(max_length=65, unique=True)
+    code = models.CharField(max_length=3, validators=[validate_upper_case], unique=True)
     closest_big_city = models.CharField(max_length=65)
 
     def __str__(self):
@@ -83,6 +83,9 @@ class Route(models.Model):
         related_name="destinations"
     )
     distance = models.IntegerField()
+
+    class Meta:
+        unique_together = ["source", "destination"]
 
     def __str__(self):
         return f"{self.source.closest_big_city} - {self.destination.closest_big_city}"
