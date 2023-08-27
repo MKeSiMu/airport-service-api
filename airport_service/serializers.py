@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from airport_service.models import AirplaneType, Airplane, Crew, Airport, Route
+from airport_service.models import AirplaneType, Airplane, Crew, Airport, Route, Flight
 
 
 class AirplaneTypeSerializer(serializers.ModelSerializer):
@@ -56,17 +56,36 @@ class RouteSerializer(serializers.ModelSerializer):
 
 class RouteListSerializer(RouteSerializer):
     source = serializers.SlugRelatedField(
-        many=False,
-        read_only=True,
-        slug_field="closest_big_city"
+        many=False, read_only=True, slug_field="closest_big_city"
     )
     destination = serializers.SlugRelatedField(
-        many=False,
-        read_only=True,
-        slug_field="closest_big_city"
+        many=False, read_only=True, slug_field="closest_big_city"
     )
 
 
 class RouteDetailSerializer(RouteSerializer):
     source = AirportSerializer(many=False, read_only=True)
     destination = AirportSerializer(many=False, read_only=True)
+
+
+class FlightSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Flight
+        fields = ("id", "route", "airplane", "crew", "departure_time", "arrival_time")
+
+
+class FlightListSerializer(FlightSerializer):
+    route = serializers.StringRelatedField(many=False, read_only=True)
+    airplane_name = serializers.CharField(source="airplane.name", read_only=True)
+    tickets_available = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Flight
+        fields = (
+            "id",
+            "route",
+            "airplane_name",
+            "departure_time",
+            "arrival_time",
+            "tickets_available",
+        )

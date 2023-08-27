@@ -1,10 +1,11 @@
+from django.db.models import F, Count, Prefetch
 from django.shortcuts import render
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 
-from airport_service.models import AirplaneType, Airplane, Crew, Airport, Route
+from airport_service.models import AirplaneType, Airplane, Crew, Airport, Route, Flight, Ticket
 from airport_service.permissions import IsAdminOrIsAuthenticatedReadOnly
 from airport_service.serializers import (
     AirplaneTypeSerializer,
@@ -17,6 +18,8 @@ from airport_service.serializers import (
     RouteSerializer,
     RouteListSerializer,
     RouteDetailSerializer,
+    FlightSerializer,
+    FlightListSerializer,
 )
 
 
@@ -114,10 +117,12 @@ class RouteViewSet(viewsets.ModelViewSet):
         destination = self.request.query_params.get("destination")
 
         if source:
-            queryset = queryset.filter(source__name__icontains=source)
+            queryset = queryset.filter(source__closest_big_city__iexact=source)
 
         if destination:
-            queryset = queryset.filter(destination__name__icontains=destination)
+            queryset = queryset.filter(
+                destination__closest_big_city__iexact=destination
+            )
 
         if self.action in ("list", "retrieve"):
             queryset = queryset.select_related("destination", "source")
@@ -132,3 +137,52 @@ class RouteViewSet(viewsets.ModelViewSet):
             return RouteDetailSerializer
 
         return RouteSerializer
+
+    # @extend_schema(
+    #     parameters=[
+    #         OpenApiParameter(
+    #             "source",
+    #             type=str,
+    #             description="Filter by Airport(source) closest big city(ex. ?source=shenzhen)",
+    #         ),
+    #         OpenApiParameter(
+    #             "destination",
+    #             type=str,
+    #             description=("Filter by Airport(destination) closest big city(ex. ?destination=beijing)"),
+    #         ),
+    #     ]
+    # )
+    # def list(self, request, *args, **kwargs):
+    #     return super().list(request, *args, **kwargs)
+
+
+class FlightViewSet(viewsets.ModelViewSet):
+    queryset = Flight.objects.all()
+    serializer_class = FlightSerializer
+    permission_classes = (IsAdminOrIsAuthenticatedReadOnly,)
+
+    def get_queryset(self):
+        queryset = self.queryset
+        if self.action == "list":
+            queryset = (
+                queryset
+                .select_related("airplane", "route__source", "route__destination")
+                .prefetch_related(Prefetch('tickets'))
+                .annotate(
+                    tickets_available=(
+                        F("airplane__rows") * F("airplane__seats_in_row")) - Count("tickets")
+                )
+
+            )
+            return queryset
+
+        return queryset
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return FlightListSerializer
+
+        # if self.action == "retrieve":
+        #     return TripDetailSerializer
+
+        return FlightSerializer
