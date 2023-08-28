@@ -5,7 +5,15 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 
-from airport_service.models import AirplaneType, Airplane, Crew, Airport, Route, Flight, Ticket
+from airport_service.models import (
+    AirplaneType,
+    Airplane,
+    Crew,
+    Airport,
+    Route,
+    Flight,
+    Ticket,
+)
 from airport_service.permissions import IsAdminOrIsAuthenticatedReadOnly
 from airport_service.serializers import (
     AirplaneTypeSerializer,
@@ -20,6 +28,7 @@ from airport_service.serializers import (
     RouteDetailSerializer,
     FlightSerializer,
     FlightListSerializer,
+    FlightDetailSerializer,
 )
 
 
@@ -164,17 +173,18 @@ class FlightViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = self.queryset
         if self.action == "list":
-            queryset = (
-                queryset
-                .select_related("airplane", "route__source", "route__destination")
-                .prefetch_related(Prefetch('tickets'))
-                .annotate(
-                    tickets_available=(
-                        F("airplane__rows") * F("airplane__seats_in_row")) - Count("tickets")
-                )
-
+            queryset = queryset.select_related(
+                "airplane", "route__destination", "route__source"
+            ).annotate(
+                tickets_available=(F("airplane__rows") * F("airplane__seats_in_row"))
+                - Count("tickets")
             )
             return queryset
+
+        if self.action == "retrieve":
+            queryset = queryset.select_related(
+                "airplane", "route__source", "route__destination"
+            ).prefetch_related("tickets", "crew")
 
         return queryset
 
@@ -182,7 +192,7 @@ class FlightViewSet(viewsets.ModelViewSet):
         if self.action == "list":
             return FlightListSerializer
 
-        # if self.action == "retrieve":
-        #     return TripDetailSerializer
+        if self.action == "retrieve":
+            return FlightDetailSerializer
 
         return FlightSerializer

@@ -73,19 +73,16 @@ class Airport(models.Model):
 
 class Route(models.Model):
     source = models.ForeignKey(
-        Airport,
-        on_delete=models.CASCADE,
-        related_name="sources"
+        Airport, on_delete=models.CASCADE, related_name="sources"
     )
     destination = models.ForeignKey(
-        Airport,
-        on_delete=models.CASCADE,
-        related_name="destinations"
+        Airport, on_delete=models.CASCADE, related_name="destinations"
     )
     distance = models.IntegerField()
 
     class Meta:
         unique_together = ["source", "destination"]
+        indexes = [models.Index(fields=["source", "destination"])]
 
     def __str__(self):
         return f"{self.source.closest_big_city} - {self.destination.closest_big_city}"
@@ -93,7 +90,9 @@ class Route(models.Model):
 
 class Flight(models.Model):
     route = models.ForeignKey(Route, related_name="flights", on_delete=models.CASCADE)
-    airplane = models.ForeignKey(Airplane, related_name="flights", on_delete=models.CASCADE)
+    airplane = models.ForeignKey(
+        Airplane, related_name="flights", on_delete=models.CASCADE
+    )
     crew = models.ManyToManyField(Crew, related_name="flights")
     departure_time = models.DateTimeField()
     arrival_time = models.DateTimeField()
@@ -127,40 +126,34 @@ class Ticket(models.Model):
         ordering = ["row", "seat"]
 
     def __str__(self):
-        return f"{self.flight} - (row: {self.row}; seat: {self.seat})"
+        return f"row: {self.row}; seat: {self.seat}"
 
     @staticmethod
-    def validate_seat(row: int, seat: int, rows: int, seats_in_row: int, error_to_raise):
+    def validate_seat(
+        row: int, seat: int, rows: int, seats_in_row: int, error_to_raise
+    ):
         if not (1 <= seat <= seats_in_row):
-            raise error_to_raise({
-                "seat": f"seat must be in range [1, {seats_in_row}], not {seat}"
-            })
+            raise error_to_raise(
+                {"seat": f"seat must be in range [1, {seats_in_row}], not {seat}"}
+            )
         if not (1 <= row <= rows):
-            raise error_to_raise({
-                "row": f"row must be in range [1, {rows}], not {row}"
-            })
+            raise error_to_raise(
+                {"row": f"row must be in range [1, {rows}], not {row}"}
+            )
 
     def clean(
-            self,
-            force_insert=False,
-            force_update=False,
-            using=None,
-            update_field=None
+        self, force_insert=False, force_update=False, using=None, update_field=None
     ):
         Ticket.validate_seat(
             self.row,
             self.seat,
             self.flight.airplane.rows,
             self.flight.airplane.seats_in_row,
-            ValidationError
+            ValidationError,
         )
 
     def save(
-            self,
-            force_insert=False,
-            force_update=False,
-            using=None,
-            update_field=None
+        self, force_insert=False, force_update=False, using=None, update_field=None
     ):
         self.full_clean()
         return super(Ticket, self).save(force_insert, force_update, using, update_field)
