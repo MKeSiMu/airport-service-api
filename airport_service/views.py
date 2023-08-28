@@ -1,5 +1,6 @@
 from django.db.models import F, Count, Prefetch
 from django.shortcuts import render
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
@@ -92,17 +93,17 @@ class AirplaneViewSet(viewsets.ModelViewSet):
         serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    # @extend_schema(
-    #     parameters=[
-    #         OpenApiParameter(
-    #             "airplane_types",
-    #             type={"type": "list", "items": {"type": "number"}},
-    #             description="Filter by AirplaneTypes id(ex. ?airplane_types=1,3)"
-    #         ),
-    #     ]
-    # )
-    # def list(self, request, *args, **kwargs):
-    #     return super().list(request, *args, **kwargs)
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "airplane_types",
+                type={"type": "list", "items": {"type": "number"}},
+                description="Filter by AirplaneTypes id(ex. ?airplane_types=1,3)"
+            ),
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
 
 
 class CrewViewSet(viewsets.ModelViewSet):
@@ -125,17 +126,6 @@ class RouteViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = self.queryset
 
-        source = self.request.query_params.get("source")
-        destination = self.request.query_params.get("destination")
-
-        if source:
-            queryset = queryset.filter(source__closest_big_city__iexact=source)
-
-        if destination:
-            queryset = queryset.filter(
-                destination__closest_big_city__iexact=destination
-            )
-
         if self.action in ("list", "retrieve"):
             queryset = queryset.select_related("destination", "source")
 
@@ -150,23 +140,6 @@ class RouteViewSet(viewsets.ModelViewSet):
 
         return RouteSerializer
 
-    # @extend_schema(
-    #     parameters=[
-    #         OpenApiParameter(
-    #             "source",
-    #             type=str,
-    #             description="Filter by Airport(source) closest big city(ex. ?source=shenzhen)",
-    #         ),
-    #         OpenApiParameter(
-    #             "destination",
-    #             type=str,
-    #             description=("Filter by Airport(destination) closest big city(ex. ?destination=beijing)"),
-    #         ),
-    #     ]
-    # )
-    # def list(self, request, *args, **kwargs):
-    #     return super().list(request, *args, **kwargs)
-
 
 class FlightViewSet(viewsets.ModelViewSet):
     queryset = Flight.objects.all()
@@ -175,6 +148,18 @@ class FlightViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = self.queryset
+
+        source = self.request.query_params.get("source")
+        destination = self.request.query_params.get("destination")
+
+        if source:
+            queryset = queryset.filter(route__source__closest_big_city__iexact=source)
+
+        if destination:
+            queryset = queryset.filter(
+                route__destination__closest_big_city__iexact=destination
+            )
+
         if self.action == "list":
             queryset = queryset.select_related(
                 "airplane", "route__destination", "route__source"
@@ -199,6 +184,25 @@ class FlightViewSet(viewsets.ModelViewSet):
             return FlightDetailSerializer
 
         return FlightSerializer
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "source",
+                type=str,
+                description="Filter by Airport(source) closest big city(ex. ?source=shenzhen)",
+            ),
+            OpenApiParameter(
+                "destination",
+                type=str,
+                description=(
+                        "Filter by Airport(destination) closest big city(ex. ?destination=beijing)"
+                ),
+            ),
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
 
 
 class TicketViewSet(viewsets.ModelViewSet):
