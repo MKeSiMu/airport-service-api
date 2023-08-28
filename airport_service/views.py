@@ -2,7 +2,8 @@ from django.db.models import F, Count, Prefetch
 from django.shortcuts import render
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAdminUser
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 
 from airport_service.models import (
@@ -12,7 +13,7 @@ from airport_service.models import (
     Airport,
     Route,
     Flight,
-    Ticket,
+    Ticket, Order,
 )
 from airport_service.permissions import IsAdminOrIsAuthenticatedReadOnly
 from airport_service.serializers import (
@@ -29,6 +30,8 @@ from airport_service.serializers import (
     FlightSerializer,
     FlightListSerializer,
     FlightDetailSerializer,
+    TicketSerializer,
+    TicketListSerializer, OrderListSerializer, OrderSerializer,
 )
 
 
@@ -196,3 +199,58 @@ class FlightViewSet(viewsets.ModelViewSet):
             return FlightDetailSerializer
 
         return FlightSerializer
+
+
+class TicketViewSet(viewsets.ModelViewSet):
+    queryset = Ticket.objects.all()
+    serializer_class = TicketSerializer
+    permission_classes = (IsAdminOrIsAuthenticatedReadOnly,)
+
+    def get_queryset(self):
+        queryset = self.queryset
+        if self.action in ("list", "retrieve"):
+            queryset = queryset.select_related(
+                "flight__route__source", "flight__route__destination", "flight__airplane"
+            )
+            return queryset
+
+        return queryset
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return TicketListSerializer
+
+        return TicketSerializer
+
+
+class OrderPagination(PageNumberPagination):
+    page_size = 5
+    page_size_query_param = "page_size'"
+    max_page_size = 100
+
+
+class OrderViewSet(viewsets.ModelViewSet):
+    queryset = Order.objects.all()
+    serializer_class = OrderSerializer
+    pagination_class = OrderPagination
+    permission_classes = (IsAuthenticated,)
+
+    def get_queryset(self):
+        queryset = self.queryset.filter(user=self.request.user)
+
+        if self.action == "list":
+            queryset = queryset.prefetch_related(
+                "tickets__flight__airplane",
+                "tickets__flight__route__source",
+                "tickets__flight__route__destination"
+            )
+        return queryset
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return OrderListSerializer
+
+        return OrderSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
