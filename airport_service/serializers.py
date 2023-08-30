@@ -8,7 +8,8 @@ from airport_service.models import (
     Airport,
     Route,
     Flight,
-    Ticket, Order,
+    Ticket,
+    Order,
 )
 
 
@@ -35,7 +36,14 @@ class AirplaneDetailSerializer(AirplaneSerializer):
 
     class Meta:
         model = Airplane
-        fields = ("id", "name", "rows", "seats_in_row", "airplane_type", "image")
+        fields = (
+            "id",
+            "name",
+            "rows",
+            "seats_in_row",
+            "airplane_type",
+            "image"
+        )
         read_only_fields = ("id", "image")
 
 
@@ -80,12 +88,22 @@ class RouteDetailSerializer(RouteSerializer):
 class FlightSerializer(serializers.ModelSerializer):
     class Meta:
         model = Flight
-        fields = ("id", "route", "airplane", "crew", "departure_time", "arrival_time")
+        fields = (
+            "id",
+            "route",
+            "airplane",
+            "crew",
+            "departure_time",
+            "arrival_time"
+        )
 
 
 class FlightListSerializer(FlightSerializer):
     route = serializers.StringRelatedField(many=False, read_only=True)
-    airplane_name = serializers.CharField(source="airplane.name", read_only=True)
+    airplane_name = serializers.CharField(
+        source="airplane.name",
+        read_only=True
+    )
     tickets_available = serializers.IntegerField(read_only=True)
 
     class Meta:

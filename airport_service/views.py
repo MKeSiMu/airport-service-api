@@ -1,5 +1,4 @@
-from django.db.models import F, Count, Prefetch
-from django.shortcuts import render
+from django.db.models import F, Count
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -14,7 +13,8 @@ from airport_service.models import (
     Airport,
     Route,
     Flight,
-    Ticket, Order,
+    Ticket,
+    Order,
 )
 from airport_service.permissions import IsAdminOrIsAuthenticatedReadOnly
 from airport_service.serializers import (
@@ -32,7 +32,9 @@ from airport_service.serializers import (
     FlightListSerializer,
     FlightDetailSerializer,
     TicketSerializer,
-    TicketListSerializer, OrderListSerializer, OrderSerializer,
+    TicketListSerializer,
+    OrderListSerializer,
+    OrderSerializer,
 )
 
 
@@ -59,7 +61,9 @@ class AirplaneViewSet(viewsets.ModelViewSet):
 
         if airplane_types:
             airplane_types_ids = self._params_to_ints(airplane_types)
-            queryset = queryset.filter(airplane_type__id__in=airplane_types_ids)
+            queryset = queryset.filter(
+                airplane_type__id__in=airplane_types_ids
+            )
 
         if self.action in ("list", "retrieve"):
             queryset = queryset.select_related("airplane_type")
@@ -98,7 +102,9 @@ class AirplaneViewSet(viewsets.ModelViewSet):
             OpenApiParameter(
                 "airplane_types",
                 type={"type": "list", "items": {"type": "number"}},
-                description="Filter by AirplaneTypes id(ex. ?airplane_types=1,3)"
+                description=(
+                        "Filter by AirplaneTypes id(ex. ?airplane_types=1,3)"
+                )
             ),
         ]
     )
@@ -153,7 +159,9 @@ class FlightViewSet(viewsets.ModelViewSet):
         destination = self.request.query_params.get("destination")
 
         if source:
-            queryset = queryset.filter(route__source__closest_big_city__iexact=source)
+            queryset = queryset.filter(
+                route__source__closest_big_city__iexact=source
+            )
 
         if destination:
             queryset = queryset.filter(
@@ -164,8 +172,11 @@ class FlightViewSet(viewsets.ModelViewSet):
             queryset = queryset.select_related(
                 "airplane", "route__destination", "route__source"
             ).annotate(
-                tickets_available=(F("airplane__rows") * F("airplane__seats_in_row"))
-                - Count("tickets")
+                tickets_available=(
+                        (F("airplane__rows")
+                         * F("airplane__seats_in_row"))
+                        - Count("tickets")
+                )
             )
             return queryset
 
@@ -190,13 +201,17 @@ class FlightViewSet(viewsets.ModelViewSet):
             OpenApiParameter(
                 "source",
                 type=str,
-                description="Filter by Airport(source) closest big city(ex. ?source=shenzhen)",
+                description=(
+                        "Filter by Airport(source) "
+                        "closest big city(ex. ?source=shenzhen)"
+                ),
             ),
             OpenApiParameter(
                 "destination",
                 type=str,
                 description=(
-                        "Filter by Airport(destination) closest big city(ex. ?destination=beijing)"
+                        "Filter by Airport(destination) closest "
+                        "big city(ex. ?destination=beijing)"
                 ),
             ),
         ]
@@ -214,7 +229,9 @@ class TicketViewSet(viewsets.ModelViewSet):
         queryset = self.queryset
         if self.action in ("list", "retrieve"):
             queryset = queryset.select_related(
-                "flight__route__source", "flight__route__destination", "flight__airplane"
+                "flight__route__source",
+                "flight__route__destination",
+                "flight__airplane"
             )
             return queryset
 
