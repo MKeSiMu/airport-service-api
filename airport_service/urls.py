@@ -8,7 +8,8 @@ from airport_service.views import (
     AirportViewSet,
     RouteViewSet,
     FlightViewSet,
-    TicketViewSet, OrderViewSet,
+    TicketViewSet,
+    OrderViewSet,
 )
 
 router = routers.DefaultRouter()
@@ -21,6 +22,6 @@ router.register("flights", FlightViewSet)
 router.register("tickets", TicketViewSet)
 router.register("orders", OrderViewSet)
 
-urlpatterns = [path("", include(router.urls))]
+urlpatterns = router.urls
 
 app_name = "airport-service"
